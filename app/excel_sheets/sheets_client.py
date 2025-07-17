@@ -7,8 +7,6 @@ from google.oauth2.service_account import Credentials
 from config.config import config
 import time
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ProductData:
@@ -68,12 +66,12 @@ class GoogleSheetsClient:
                 self.sheet = self.workbook.worksheet("VOIP")
             except gspread.WorksheetNotFound:
                 # Catch nonexisting worksheet
-                logger.warning("Worksheet 'VOIP' not found")
+                print("Worksheet 'VOIP' not found")
 
-            logger.info(f"Successfully connected to Google Sheets: {self.workbook.title}")
+            print(f"Successfully connected to Google Sheets: {self.workbook.title}")
 
         except Exception as e:
-            logger.error(f"Error logging into Google sheets: {e}")
+            print(f"Error logging into Google sheets: {e}")
             raise
 
     def get_all_products(self) -> List[Dict]:
@@ -86,7 +84,7 @@ class GoogleSheetsClient:
             records = self.sheet.get_all_records()
 
             if not records:
-                logger.warning("No products found on the sheet")
+                print("No products found on the sheet")
                 return []
 
             # Clean the data
@@ -119,14 +117,14 @@ class GoogleSheetsClient:
                     products.append(normalized_record)
 
                 except Exception as e:
-                    logger.error(f"Error processing queue {i}: {e}")
+                    print(f"Error processing queue {i}: {e}")
                     continue
 
-            logger.info(f" Read {len(products)} valid products from the sheet")
+            print(f" Read {len(products)} valid products from the sheet")
             return products
 
         except Exception as e:
-            logger.error(f"Error reading products: {e}")
+            print(f"Error reading products: {e}")
             return []
 
     def _validate_product_record(self, record: Dict, row_number: int) -> bool:
@@ -135,25 +133,11 @@ class GoogleSheetsClient:
 
         for field in required_fields:
             if not record.get(field):
-                logger.warning(f"Row {row_number}: is missing required field: '{field}'")
+                print(f"Row {row_number}: is missing required field: '{field}'")
                 return False
 
         return True
 
-    def get_product_by_part_no(self, part_no: str) -> Optional[Dict]:
-        """Gets each specific products by Part No"""
-        try:
-            products = self.get_all_products()
-
-            for product in products:
-                if product.get('part_no') == part_no:
-                    return product
-
-            return None
-
-        except Exception as e:
-            logger.error(f"Error getting product {part_no}: {e}")
-            return None
 
     def watch_for_changes(self, callback_function, interval: int = None):
         """
@@ -162,7 +146,7 @@ class GoogleSheetsClient:
         if interval is None:
             interval = config.sync_interval
 
-        logger.info(f"Monitoring for changes (interval: {interval})")
+        print(f"Monitoring for changes (interval: {interval})")
 
         last_data_hash = None #in order to determine changes in data we use a Cryptographic hash Function
 
@@ -176,13 +160,13 @@ class GoogleSheetsClient:
 
                 # If there are changes do callback
                 if last_data_hash is None:
-                    logger.info("First load of data")
+                    print("First load of data")
                     callback_function(current_data)
                 elif current_hash != last_data_hash:
-                    logger.info("Changes in the sheet")
+                    print("Changes in the sheet")
                     callback_function(current_data)
                 else:
-                    logger.debug("No changes in the sheet")
+                    print("No changes in the sheet")
 
                 last_data_hash = current_hash
 
@@ -190,18 +174,8 @@ class GoogleSheetsClient:
                 time.sleep(interval)
 
             except Exception as e:
-                logger.error(f"Error in monitoring for changes: {e}")
+                print(f"Error in monitoring for changes: {e}")
                 time.sleep(interval * 2)  # Wait more time if there's error and try again
-
-    def refresh_connection(self):
-        """Refresh the connection to google sheets"""
-        try:
-            logger.info("Refreshing connection to google sheets")
-            self.connect()
-        except Exception as e:
-            logger.error(f"Error refreshing connection: {e}")
-            raise
-
 
 # Helper function to create the Google sheets client
 def create_sheets_client() -> GoogleSheetsClient:
