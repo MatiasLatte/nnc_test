@@ -1,41 +1,9 @@
 import gspread
-import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 from google.oauth2.service_account import Credentials
 from config.config import config
 import time
-
-
-@dataclass
-class ProductData:
-    """Data structure for each product"""
-    part: str
-    price: float
-    weight: int
-    tag: str
-    collection: str
-
-    def to_dict(self) -> dict:
-        return {
-            'part': self.part,
-            'price': self.price,
-            'weight': self.weight,
-            'tag': self.tag,
-            'collection': self.collection,
-        }
-
-    @classmethod
-    def from_row(cls, row_data: Dict) -> 'ProductData':
-        """Creates a product data from a Sheets row"""
-        return cls(
-            part=row_data.get('part_no', ''),
-            price=float(row_data.get('price', 0)),
-            weight=int(row_data.get('weight', 0)),
-            tag=row_data.get('tag', ''),
-            collection=row_data.get('collection', '')
-        )
 
 
 class GoogleSheetsClient:
@@ -137,7 +105,6 @@ class GoogleSheetsClient:
                 return False
 
         return True
-
 
     def watch_for_changes(self, callback_function, interval: int = None):
         """
