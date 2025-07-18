@@ -91,3 +91,4 @@ def save_product_to_db(product_data, shopify_id=None):
     except Exception as e:
         print(f"Error saving product to database: {e}")
         return False
+
