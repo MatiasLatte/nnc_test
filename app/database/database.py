@@ -2,6 +2,32 @@ import psycopg2
 from config.config import config
 
 
+def clean_price(price_value):
+    """Clean and convert price"""
+    if not price_value:
+        return 0.0
+
+    try:
+        # Convert to string
+        price_str = str(price_value).strip()
+
+        # Remove currency symbols
+        price_str = price_str.replace(',', '')
+        price_str = price_str.replace(' ', '')
+        price_str = price_str.replace('$', '')      # Regular dollar sign
+        price_str = price_str.replace('$', '')      # Unicode dollar sign
+
+        # handle empty string
+        if not price_str:
+            return 0.0
+
+        # Convert to float
+        return float(price_str)
+
+    except (ValueError, TypeError) as e:
+        print(f"Could not convert price '{price_value}'")
+        return 0.0
+
 def get_db_connection():
     """Get database connection"""
     try:
@@ -59,7 +85,7 @@ def save_product_to_db(product_data, shopify_id=None):
         cursor = conn.cursor()
 
         part_no = product_data.get('part_no', '')
-        price = float(product_data.get('price', 0))
+        price = clean_price(product_data.get('price', 0))
         weight = int(float(product_data.get('weight', 0)))
         tag = product_data.get('tag', '')
         collection = product_data.get('collection', '')
