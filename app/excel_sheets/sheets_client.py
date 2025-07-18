@@ -122,7 +122,7 @@ class GoogleSheetsClient:
                 # Get current data
                 current_data = self.get_all_products() # -> dict of all products in the sheet
 
-                # Get simple hash to detect changes
+                # Hash function, will return different out put if any changes are made
                 current_hash = hash(str(sorted(current_data, key=lambda x: x.get('part_no', ''))))
 
                 # If there are changes do callback
