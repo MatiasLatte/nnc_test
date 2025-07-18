@@ -2,7 +2,7 @@ import requests
 import json
 from config.config import config
 import time
-from app.database.database import save_product_to_db
+from app.database.database import save_product_to_db, clean_price
 
 
 #credentials
@@ -17,11 +17,12 @@ HEADERS = {
 }
 URL = f"https://{shop_url}/admin/api/{api_version}/products.json"
 
+
 def create_shopify_product(sheet_row):
     """Create a new product in Shopify from sheet data"""
     try:
         part_no = sheet_row.get('part_no', '')
-        price = float(sheet_row.get('price', 0))
+        price = clean_price(sheet_row.get('price', 0))
         weight = int(float(sheet_row.get('weight', 0)))
         tag = sheet_row.get('tag', '')
         collection = sheet_row.get('collection', '')
@@ -62,12 +63,11 @@ def create_shopify_product(sheet_row):
         print(f"Error creating {sheet_row.get('part_no', 'Unknown')}: {e}")
         return False
 
-
 def update_shopify_product(product_id, sheet_row):
     """Update existing product in Shopify"""
     try:
         part_no = sheet_row.get('part_no', '')
-        price = float(sheet_row.get('price', 0))
+        price = clean_price(sheet_row.get('price', 0))
         weight = int(float(sheet_row.get('weight', 0)))
         tag = sheet_row.get('tag', '')
         collection = sheet_row.get('collection', '')
@@ -136,27 +136,50 @@ def find_product_by_sku(sku, shopify_products):
 
 def get_all_shopify_products():
     """Get all products from Shopify"""
+    print("Getting all products from Shopify")
+
     all_products = []
-    url =f"https://{config.shopify.shop_url}/admin/api/{config.shopify.api_version}/products.json?limit=250"
 
-    while url:
-        try:
-            response = requests.get(url, headers=HEADERS)
+    try:
+        # Debug the URL and headers
+        url = f"https://{config.shopify.shop_url}/admin/api/{config.shopify.api_version}/products.json?limit=250"
 
-            if response.status_code == 200:
-                data = response.json()
-                products = data.get('products', [])
-                all_products.extend(products)
-                print(f"Found {len(products)} products (total: {len(all_products)})")
-            else:
-                print(f"Error getting products: {response.status_code}")
-                break
+        response = requests.get(url, headers=HEADERS)
 
-        except Exception as e:
-            print(f"Error: {e}")
-            break
+        print(f"Response Status: {response.status_code}")
 
-    print(f"Total products found: {len(all_products)}")
+        if response.status_code == 200:
+            data = response.json()
+            products = data.get('products', [])
+            all_products.extend(products)
+
+
+        elif response.status_code == 400:
+            print(f"Bad Request (400)")
+            print(f"Response Text: {response.text}")
+
+            # Try a different API version
+            print("Trying with API version 2023-10...")
+            url_v2 = f"https://{config.shopify.shop_url}/admin/api/2023-10/products.json?limit=250"
+            response2 = requests.get(url_v2, headers=HEADERS)
+            print(f"Version 2023-10 Status: {response2.status_code}")
+
+
+        elif response.status_code == 401:
+            print(f"Unauthorized (401) - Check access token")
+            print(f"Response: {response.text}")
+
+        elif response.status_code == 403:
+            print(f"Forbidden (403) - Check API permissions")
+            print(f"Response: {response.text}")
+
+        else:
+            print(f"Error {response.status_code}: {response.text}")
+
+    except Exception as e:
+        print(f"Exception: {e}")
+
+    print(f"Found {len(all_products)} products")
     return all_products
 
 def sync_sheets_to_shopify(sheet_products):
@@ -199,15 +222,9 @@ def sync_sheets_to_shopify(sheet_products):
             else:
                 failed += 1
 
-        # Wait a bit to avoid hitting rate limits
+        # Wait a bit to avoid hitting APIs request limit
         time.sleep(0.5)
 
-    # Print results
-    print(f"\nSync Complete!")
-    print(f"    Created: {created}")
-    print(f"    Updated: {updated}")
-    print(f"    Failed: {failed}")
-    print(f"   ️ Skipped: {skipped}")
     return {
         'created': created,
         'updated': updated,
